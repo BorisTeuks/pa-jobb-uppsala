@@ -1,0 +1,47 @@
+name: PA-jobb Uppsala – Daglig uppdatering
+
+on:
+  schedule:
+    # Körs varje dag kl 07:00 svensk tid (05:00 UTC, 06:00 UTC vid sommartid)
+    - cron: "0 5 * * *"
+  workflow_dispatch:  # Tillåter manuell körning från GitHub UI
+
+jobs:
+  update-jobs:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Hämta repo-koden
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Sätt upp Python
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # 3. Installera beroenden
+      - name: Install dependencies
+        run: |
+          pip install requests beautifulsoup4 openpyxl lxml
+
+      # 4. Kör uppdateringsskriptet
+      - name: Run PA job updater
+        env:
+          EMAIL_FROM:     ${{ secrets.EMAIL_FROM }}
+          EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+          EMAIL_TO:       ${{ secrets.EMAIL_TO }}
+        run: |
+          python scripts/update_jobs.py
+
+      # 5. Spara uppdaterad Excel och seen-lista tillbaka till repot
+      - name: Commit updated files
+        run: |
+          git config --global user.name  "PA-agent"
+          git config --global user.email "pa-agent@github-actions"
+          git add PA_Jobb_Uppsala_Gunsta.xlsx scripts/seen_jobs.json
+          git diff --staged --quiet || git commit -m "Auto: PA-jobb uppdatering ${{ env.TODAY || 'latest' }}"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
