@@ -11,23 +11,19 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout repo
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           persist-credentials: true
 
-      # 2. Set up Python
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
-      # 3. Install dependencies
       - name: Install dependencies
         run: pip install requests beautifulsoup4 openpyxl lxml
 
-      # 4. Run the agent
       - name: Run PA job updater
         env:
           EMAIL_FROM:     ${{ secrets.EMAIL_FROM }}
@@ -35,13 +31,15 @@ jobs:
           EMAIL_TO:       ${{ secrets.EMAIL_TO }}
         run: python scripts/update_jobs.py
 
-      # 5. Commit updated Excel + memory file back to repo
       - name: Commit updated files
         run: |
           git config --global user.name  "PA-agent"
           git config --global user.email "pa-agent@github-actions"
           git add PA_Jobb_Uppsala_Gunsta.xlsx scripts/seen_jobs.json
-          git diff --staged --quiet || git commit -m "Auto: PA-jobb uppdatering $(date +%Y-%m-%d)"
-          git push
+          git diff --staged --quiet || (
+            git commit -m "Auto: PA-jobb uppdatering $(date +%Y-%m-%d)" &&
+            git pull --rebase &&
+            git push
+          )
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
