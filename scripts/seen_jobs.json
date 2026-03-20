@@ -1,42 +1,54 @@
 {
-  "30769628": {
+  "pb_30666709": {
+    "title": "Aktiv engagerad assistent sökes till kille i Tobo/Örbyhus, körkort krav",
+    "first_seen": "2026-03-20"
+  },
+  "pb_30666685": {
+    "title": "Aktiv engagerad assistent sökes till kille i Tobo/Örbyhus, körkort krav",
+    "first_seen": "2026-03-20"
+  },
+  "lj_toborbyhuskrkortkrav": {
+    "title": "Aktiv engagerad assistent sökes till kille i Tobo/Örbyhus, körkort krav",
+    "first_seen": "2026-03-20"
+  },
+  "pb_30769628": {
     "title": "Personlig assistent till man i Uppsala",
-    "seen_date": "2026-03-19"
+    "first_seen": "2026-03-20"
   },
-  "30751040": {
+  "pb_30751040": {
     "title": "Personlig assistent sökes till aktiv ung man i Knivsta",
-    "seen_date": "2026-03-19"
+    "first_seen": "2026-03-20"
   },
-  "30724355": {
-    "title": "Personlig assistent för timvikariat sökes till man i Heby",
-    "seen_date": "2026-03-19"
-  },
-  "30687806": {
+  "pb_30687806": {
     "title": "Personliga assistenter till en kille i Uppsala.",
-    "seen_date": "2026-03-19"
+    "first_seen": "2026-03-20"
   },
-  "30667617": {
+  "pb_30667617": {
     "title": "Personliga assistenter sökes till kille utanför Uppsala",
-    "seen_date": "2026-03-19"
+    "first_seen": "2026-03-20"
   },
-  "30666709": {
-    "title": "Aktiv engagerad assistent sökes till kille i Tobo/Örbyhus, körkort krav",
-    "seen_date": "2026-03-19"
-  },
-  "30666685": {
-    "title": "Aktiv engagerad assistent sökes till kille i Tobo/Örbyhus, körkort krav",
-    "seen_date": "2026-03-19"
-  },
-  "30647293": {
+  "pb_30647293": {
     "title": "50% tjänst erbjudes till glad kille i Almunge",
-    "seen_date": "2026-03-19"
+    "first_seen": "2026-03-20"
   },
-  "30616398": {
+  "pb_30616398": {
     "title": "Personlig assistent åt kille i Knivsta",
-    "seen_date": "2026-03-19"
+    "first_seen": "2026-03-20"
   },
-  "30441435": {
+  "lj_rtillenkilleiuppsala": {
+    "title": "Personliga assistenter till en kille i Uppsala.",
+    "first_seen": "2026-03-20"
+  },
+  "lj_llkilleutanfruppsala": {
+    "title": "Personliga assistenter sökes till kille utanför Uppsala",
+    "first_seen": "2026-03-20"
+  },
+  "pb_30724355": {
+    "title": "Personlig assistent för timvikariat sökes till man i Heby",
+    "first_seen": "2026-03-20"
+  },
+  "pb_30441435": {
     "title": "Assistent sökes till glad och aktiv man i Gimo",
-    "seen_date": "2026-03-19"
+    "first_seen": "2026-03-20"
   }
 }
