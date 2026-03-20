@@ -2,22 +2,25 @@ name: PA-jobb Uppsala – Daglig uppdatering
 
 on:
   schedule:
-    # Runs every day at 05:00 UTC = 07:00 Swedish winter time
-    - cron: "0 5 * * *"
-  workflow_dispatch:  # Manual trigger from GitHub UI
+    - cron: "0 5 * * *"   # 07:00 Swedish winter time
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
 
 jobs:
   update-jobs:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.2.2
         with:
           persist-credentials: true
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v5.4.0
         with:
           python-version: "3.12"
 
@@ -35,7 +38,7 @@ jobs:
         run: |
           git config --global user.name  "PA-agent"
           git config --global user.email "pa-agent@github-actions"
-          git add PA_Jobb_Uppsala_Gunsta.xlsx scripts/seen_jobs.json
+          git add PA_Jobb_Uppsala_Gunsta.xlsx scripts/seen_jobs.json docs/index.html
           git diff --staged --quiet || (
             git commit -m "Auto: PA-jobb uppdatering $(date +%Y-%m-%d)" &&
             git pull --rebase &&
@@ -43,3 +46,27 @@ jobs:
           )
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  deploy-pages:
+    needs: update-jobs
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.2.2
+        with:
+          ref: main
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload docs folder
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
