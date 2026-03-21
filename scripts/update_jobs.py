@@ -27,13 +27,13 @@ DASHBOARD    = Path("docs/index.html")
 TODAY        = date.today().isoformat()
 SHEET_NAME   = "📋 Lediga Jobb"
 PAGES_URL    = "https://boristeuks.github.io/pa-jobb-uppsala"
-GUNSTA_LAT   = 59.9878
-GUNSTA_LON   = 17.7542
+HOME_LAT     = 59.9650   # Hjulaxelvägen 128, 74151 Uppsala
+HOME_LON     = 17.7150
 MAX_KM       = 50
 
 # ── Location coords ───────────────────────────────────────────────────────────
 LOCATION_COORDS = {
-    "gunsta":(59.9878,17.7542),"storvreta":(59.9647,17.7103),
+    "gunsta":(59.9650,17.7150),"hjulaxelvägen":(59.9650,17.7150),"storvreta":(59.9647,17.7103),
     "vattholma":(59.9906,17.6856),"björklinge":(60.0003,17.5353),
     "älavsjö":(59.8700,17.7200),"uppsala":(59.8586,17.6389),
     "rickomberga":(59.8500,17.5800),"eriksberg":(59.8600,17.5400),
@@ -112,8 +112,8 @@ def wk_status(title, raw=""):
     return "none"
 
 def haversine(lat2, lon2):
-    R=6371; dlat=math.radians(lat2-GUNSTA_LAT); dlon=math.radians(lon2-GUNSTA_LON)
-    a=math.sin(dlat/2)**2+math.cos(math.radians(GUNSTA_LAT))*math.cos(math.radians(lat2))*math.sin(dlon/2)**2
+    R=6371; dlat=math.radians(lat2-HOME_LAT); dlon=math.radians(lon2-HOME_LON)
+    a=math.sin(dlat/2)**2+math.cos(math.radians(HOME_LAT))*math.cos(math.radians(lat2))*math.sin(dlon/2)**2
     return R*2*math.asin(math.sqrt(a))
 
 def dist_km(ort):
@@ -330,35 +330,31 @@ def fetch_vakanser():
 # ── Combine + deduplicate ─────────────────────────────────────────────────────
 def fetch_all():
     """
-    Fetch from all sources, deduplicate by title+company key.
-    Platsbanken entries win over duplicates from other sources.
+    Fetch from all sources, deduplicate globally by title+company key.
+    Platsbanken entries have priority; duplicates within ANY source are also removed.
+    When the same job title+company appears with multiple IDs (e.g. multi-vacancy posts),
+    only the first occurrence is kept.
     """
-    pb_jobs  = fetch_assistanskoll()   # Source 1 — primary
-    lj_jobs  = fetch_ledigajobb()      # Source 2 — direct ATS feeds
-    vk_jobs  = fetch_vakanser()        # Source 3 — Särnmark reachmee etc.
+    pb_jobs = fetch_assistanskoll()   # Source 1 — primary
+    lj_jobs = fetch_ledigajobb()      # Source 2 — direct ATS feeds
+    vk_jobs = fetch_vakanser()        # Source 3 — Särnmark reachmee etc.
 
-    # Build dedup map — Platsbanken entries have priority
-    seen_keys = {}
+    seen_keys = {}   # dedup key → first job id that claimed it
     all_jobs  = []
+    dups      = 0
 
-    # Process Platsbanken first (highest priority)
-    for j in pb_jobs:
-        key = dedup_key(j["title"], j.get("company",""))
-        seen_keys[key] = j["id"]
-        all_jobs.append(j)
-
-    # Add from other sources only if not already in Platsbanken
-    dups = 0
-    for j in lj_jobs + vk_jobs:
-        key = dedup_key(j["title"], j.get("company",""))
+    # Process all sources in priority order: Platsbanken first
+    for j in pb_jobs + lj_jobs + vk_jobs:
+        key = dedup_key(j["title"], j.get("company", ""))
         if key in seen_keys:
             dups += 1
-            continue   # already covered by Platsbanken
+            print(f"[DEDUP] '{j['title'][:50]}' already seen as {seen_keys[key]}")
+            continue
         seen_keys[key] = j["id"]
         all_jobs.append(j)
 
     print(f"[INFO] Combined: {len(all_jobs)} unique jobs ({dups} duplicates removed)")
-    print(f"[INFO] Sources: Platsbanken={len(pb_jobs)} | ledigajobb={len(lj_jobs)} | vakanser={len(vk_jobs)}")
+    print(f"[INFO] Sources: Platsbanken={len(pb_jobs)} ledigajobb={len(lj_jobs)} vakanser={len(vk_jobs)}")
     return all_jobs
 
 # ── Filter ────────────────────────────────────────────────────────────────────
@@ -545,7 +541,7 @@ def build_dashboard(new_jobs, open_jobs, closed_jobs, dist_excl, source_stats):
 <body>
 <header>
   <h1>📋 PA-jobb Uppsala</h1>
-  <p>Uppdaterad {TODAY} &middot; Manliga kunder &middot; Max {MAX_KM} km från Gunsta &middot; Körkort &amp; helg prioriterat</p>
+  <p>Uppdaterad {TODAY} &middot; Manliga kunder &middot; Max {MAX_KM} km från Hjulaxelvägen 128 &middot; Körkort &amp; helg prioriterat</p>
   <div class="stats">
     <div class="stat"><span>{len(new_jobs)}</span>Nya idag</div>
     <div class="stat"><span>{len(open_jobs)}</span>Öppna</div>
@@ -612,7 +608,7 @@ def send_email(new_jobs, open_jobs, closed_jobs, dist_excl, source_stats):
     html=f"""<html><body style="font-family:Arial,sans-serif;max-width:720px;margin:auto">
     <div style="background:#1B4332;color:white;padding:18px 20px;border-radius:8px 8px 0 0">
       <h2 style="margin:0;font-size:18px">📋 PA-jobb Uppsala – {TODAY}</h2>
-      <p style="margin:4px 0 0;opacity:.75;font-size:12px">Daglig uppdatering · 3 källor · Manliga kunder · Max {MAX_KM} km från Gunsta</p>
+      <p style="margin:4px 0 0;opacity:.75;font-size:12px">Daglig uppdatering · 3 källor · Manliga kunder · Max {MAX_KM} km från Hjulaxelvägen 128</p>
       <p style="margin:4px 0 0;opacity:.6;font-size:11px">📡 {src_summary}</p>
     </div>
     <div style="padding:16px 20px;background:#f9f9f9;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 8px 8px">
