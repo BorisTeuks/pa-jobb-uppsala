@@ -154,14 +154,14 @@ def days_since(date_str):
     try: return (date.today()-date.fromisoformat(date_str[:10])).days
     except: return 0
 
-def dedup_key(title, company):
-    """Normalised key for deduplication across sources."""
+def dedup_key(title):
+    """
+    Deduplication key based on title only (first 8 words, normalised).
+    Ignores company — ledigajobb.se and vakanser.se often extract company
+    differently or not at all, so title-only is more reliable.
+    """
     t = re.sub(r'\s+', ' ', re.sub(r'[^a-zåäö0-9 ]', '', norm(title)))
-    c = re.sub(r'\s+', ' ', re.sub(r'[^a-zåäö ]', '', norm(company)))
-    # Use first 6 words of title + first word of company
-    tw = ' '.join(t.split()[:6])
-    cw = c.split()[0] if c.split() else ''
-    return f"{tw}|{cw}"
+    return ' '.join(t.split()[:8])
 
 # ── Source 1: Assistanskoll (Platsbanken) ─────────────────────────────────────
 def fetch_assistanskoll():
@@ -345,7 +345,7 @@ def fetch_all():
 
     # Process all sources in priority order: Platsbanken first
     for j in pb_jobs + lj_jobs + vk_jobs:
-        key = dedup_key(j["title"], j.get("company", ""))
+        key = dedup_key(j["title"])
         if key in seen_keys:
             dups += 1
             print(f"[DEDUP] '{j['title'][:50]}' already seen as {seen_keys[key]}")
