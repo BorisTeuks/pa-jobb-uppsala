@@ -1,23 +1,47 @@
 """
 PA-jobb Uppsala – Daglig uppdatering  (v7)
 ──────────────────────────────────────────
-Changes from v6:
-  • 8 sources: added ledigajobbiuppsala.se, jobbsafari.se, Humana direct
-  • Catches Humana jobs posted directly without going through Platsbanken
+8 sources · dedup by title · live verification · GitHub Pages dashboard
 
-Changes from v5:
-  • 5 sources instead of 1: Platsbanken · Indeed RSS · JobTech Dev API · ledigajobb.se · vakanser.se
-  • Indeed RSS: stubbed out (GitHub Actions IPs blocked by Indeed 403); JobTech API covers same gap
-  • JobTech Dev API: Sweden's official open job API, covers non-Platsbanken sources
-  • Deduplication by title only (first 8 words) — company name ignored (unreliable across sources)
-  • verify_still_open(): checks Platsbanken API on each run to catch filled/withdrawn jobs
-  • Home coordinates updated: Hjulaxelvägen 128, 74151 Uppsala (59.9650°N, 17.7150°E)
-  • Distance limit: 50 km from home address (Enköping, Norrtälje, Västerås excluded)
-  • Female exclusion: 30+ keywords covering title + full listing text
-  • Licence priority: 🚗 KRÄVS → ⭐⭐⭐ | 🚗 Merit → ⭐⭐ boost
-  • Weekend detection: helg/fredag kväll/extrajobb → ✅ Helg/kväll
-  • Dashboard: docs/index.html with 3 sections (New / Still open / Closed) + distance excluded
-  • Email: short digest with stats tiles + dashboard link + new jobs table
+SOURCES (in priority order for dedup):
+  1. 🏛️  Assistanskoll / Platsbanken  — primary, all formally posted PA jobs Uppsala-regionen
+  2. 🔴  Indeed RSS                   — stubbed (GitHub Actions IPs blocked 403)
+  3. 🟤  JobTech Dev API              — jobsearch.api.jobtechdev.se, free, no key needed
+  4. 🔵  ledigajobb.se                — direct ATS feeds (Särnmark reachmee etc.)
+  5. 🟣  vakanser.se                  — additional aggregator
+  6. 🟠  ledigajobbiuppsala.se        — Uppsala-specific aggregator with Humana direct posts
+                                        scrapes <h2> headings + sibling [Ansök](url) links
+                                        catches jobs on jobb.humana.se before Platsbanken
+  7. 🟢  jobbsafari.se               — scrapes company career pages directly
+  8. 🔵  Humana direct               — jobb.humana.se filtered for Uppsala
+
+DEDUPLICATION:
+  Title-only key (first 8 words, normalised). Company name ignored — unreliable across
+  sources. Platsbanken wins when same job appears on multiple sources.
+
+FILTERS (applied in order):
+  1. Expired deadline → skip
+  2. Female exclusion keywords in title or raw text → skip (30+ keywords)
+  3. No male indicator keyword → skip
+  4. Distance > 50 km from Hjulaxelvägen 128, Uppsala → exclude (shown in email/dashboard)
+
+RATING:
+  ⭐⭐⭐  Licence required  OR  (licence merit AND helg)  OR  (helg AND near home)
+  ⭐⭐   Weekend/evening  OR  licence merit  OR  near Uppsala/Gunsta
+  ⭐    Passes filters, no priority signals
+
+LIVE VERIFICATION:
+  verify_still_open(): on each run, checks Platsbanken API for every previously-seen
+  job. Returns False on 404 → job moved to Closed section immediately.
+
+OUTPUTS:
+  • docs/index.html  — live dashboard (GitHub Pages), 3 sections + distance excluded
+  • PA_Jobb_Uppsala_Gunsta.xlsx  — Excel tracker, new rows added per run
+  • Email digest  — stats tiles + new jobs table + link to dashboard + Excel attached
+  • scripts/seen_jobs.json  — memory file, tracks job IDs + first_seen date
+
+HOME: Hjulaxelvägen 128, 74151 Uppsala  (59.9650°N, 17.7150°E)
+MAX DISTANCE: 50 km
 """
 
 import re, json, smtplib, os, math, urllib.parse, xml.etree.ElementTree as ET
@@ -314,72 +338,112 @@ def fetch_jobtech():
 # ── Source 4: ledigajobbiuppsala.se ──────────────────────────────────────────
 def fetch_ledigajobb_uppsala():
     """
-    Uppsala-specific job aggregator. Includes Humana direct postings,
-    company career pages, and other sources not on Platsbanken.
+    Uppsala-specific aggregator. Real page structure (confirmed by live fetch):
+      <h2>Job Title</h2>
+      [Ansök](https://jobb.humana.se/...)   <- apply URL, NOT a /jobb/ path
+      Mar 26
+      [Company Name](/foretag/company-slug)
+      [Personlig assistent](/yrke/...)
+      Description text...
+
+    Jobs link directly to company ATS (jobb.humana.se, sarnmark.se, etc.)
+    — these are the jobs that never appear on Platsbanken/Assistanskoll.
     """
     urls = [
-        "https://www.ledigajobbiuppsala.se/pr/personlig-assistent-jobb",
+        "https://www.ledigajobbiuppsala.se/yrke/personlig-assistent",
         "https://www.ledigajobbiuppsala.se/foretag/humana-ab-uppsala",
     ]
+    month_map = {
+        "Jan":"01","Feb":"02","Mar":"03","Apr":"04","May":"05","Jun":"06",
+        "Jul":"07","Aug":"08","Sep":"09","Oct":"10","Nov":"11","Dec":"12"
+    }
     seen, jobs = set(), []
 
-    for url in urls:
+    for page_url in urls:
         try:
-            r = requests.get(url, headers=HEADERS, timeout=15)
+            r = requests.get(page_url, headers=HEADERS, timeout=15)
             r.raise_for_status()
         except Exception as e:
-            print(f"[WARN] ledigajobbiuppsala ({url}): {e}"); continue
+            print(f"[WARN] ledigajobbiuppsala ({page_url}): {e}"); continue
 
         soup = BeautifulSoup(r.text, "html.parser")
 
-        # Find job links — ledigajobbiuppsala uses /jobb/ URL pattern
-        for a in soup.find_all("a", href=True):
-            href = a.get("href", "")
-            if not href:
-                continue
-            if not href.startswith("http"):
-                href = "https://www.ledigajobbiuppsala.se" + href
-            # Only job listing pages
-            if "/jobb/" not in href and "/foretag/" not in href:
-                continue
-
-            title = a.get_text(strip=True)
+        # Each job starts with an <h2> heading
+        for h2 in soup.find_all("h2"):
+            title = h2.get_text(strip=True)
             if not title or len(title) < 8:
                 continue
 
-            # Get surrounding context for metadata
-            parent = a.find_parent(["li", "div", "article", "section"])
-            raw = parent.get_text(" ", strip=True) if parent else title
+            apply_url = ""
+            pub_date  = ""
+            company   = "–"
+            raw_parts = [title]
 
-            # Skip if already seen this URL
-            if href in seen:
+            # Walk siblings until next h2
+            for sib in h2.find_next_siblings():
+                if sib.name == "h2":
+                    break
+                sib_text = sib.get_text(" ", strip=True)
+                raw_parts.append(sib_text)
+
+                # Apply URL: first link that is NOT an internal /yrke/ or /foretag/ nav link.
+                # On ledigajobbiuppsala.se the <a> tags are DIRECT siblings of <h2>,
+                # not nested inside a wrapper — so we must check sib itself when it's an <a>.
+                if not apply_url:
+                    candidates = ([sib] if sib.name == "a" and sib.get("href")
+                                  else sib.find_all("a", href=True))
+                    for a in candidates:
+                        href = a.get("href", "")
+                        if "/yrke/" in href or "/foretag/" in href:
+                            continue
+                        if href.startswith("http") or "ans" in a.get_text(strip=True).lower():
+                            apply_url = href
+                            break
+
+                # Date: "Mar 26" pattern used by this site
+                if not pub_date:
+                    dm = re.search(
+                        r"\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{1,2})\b",
+                        sib_text)
+                    if dm:
+                        pub_date = f"2026-{month_map.get(dm.group(1),'01')}-{dm.group(2).zfill(2)}"
+                    else:
+                        dm2 = re.search(r"(\d{4}-\d{2}-\d{2})", sib_text)
+                        if dm2:
+                            pub_date = dm2.group(1)
+
+                # Company: link to /foretag/
+                if company == "–":
+                    for a in sib.find_all("a", href=True):
+                        if "/foretag/" in a.get("href", ""):
+                            company = a.get_text(strip=True)
+                            break
+
+            if not apply_url:
                 continue
-            seen.add(href)
+            # Skip Platsbanken links — already covered by Assistanskoll
+            if "arbetsformedlingen" in apply_url or "platsbanken" in apply_url:
+                continue
+            if apply_url in seen:
+                continue
+            seen.add(apply_url)
 
-            # Extract company from parent element
-            comp_el = (parent.find(class_=re.compile(r"company|employer|foretag", re.I))
-                       if parent else None)
-            company = comp_el.get_text(strip=True) if comp_el else "–"
-
-            # Pub date — look for date patterns
-            date_m = re.search(r"(\d{4}-\d{2}-\d{2})", raw)
-            pub_date = date_m.group(1) if date_m else ""
-
-            slug = re.sub(r"[^a-z0-9]", "", href.lower())[-24:]
+            raw  = " ".join(raw_parts)
+            slug = re.sub(r"[^a-z0-9]", "", apply_url.lower())[-24:]
             jobs.append({
                 "id":          f"lu_{slug}",
                 "title":       title,
-                "url":         href,
+                "url":         apply_url,
                 "deadline":    "",
                 "pub_date":    pub_date,
                 "ort":         "Uppsala",
                 "company":     company,
                 "source":      "ledigajobbiuppsala.se",
                 "source_icon": "🟠",
-                "raw_text":    title + " " + raw,
+                "raw_text":    raw,
             })
 
-    print(f"[INFO] ledigajobbiuppsala.se: {len(jobs)} listings")
+    print(f"[INFO] ledigajobbiuppsala.se: {len(jobs)} direct-ATS listings")
     return jobs
 
 
