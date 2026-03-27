@@ -3,7 +3,7 @@ PA-jobb Uppsala – Daglig uppdatering  (v6)
 ──────────────────────────────────────────
 Changes from v5:
   • 5 sources instead of 1: Platsbanken · Indeed RSS · JobTech Dev API · ledigajobb.se · vakanser.se
-  • Indeed RSS: catches jobs posted directly on Indeed before reaching Platsbanken
+  • Indeed RSS: stubbed out (GitHub Actions IPs blocked by Indeed 403); JobTech API covers same gap
   • JobTech Dev API: Sweden's official open job API, covers non-Platsbanken sources
   • Deduplication by title only (first 8 words) — company name ignored (unreliable across sources)
   • verify_still_open(): checks Platsbanken API on each run to catch filled/withdrawn jobs
@@ -257,37 +257,15 @@ def fetch_assistanskoll():
     return jobs
 
 # ── Source 2: ledigajobb.se (direct ATS feeds incl. Särnmark, Vivida direct) ──
-# ── Source 2: Indeed RSS ──────────────────────────────────────────────────────
+# ── Source 2: Indeed RSS ─────────────────────────────────────────────────────
 def fetch_indeed_rss():
-    from email.utils import parsedate_to_datetime
-    seen, jobs = set(), []
-    for q in ["personlig+assistent+kille","personlig+assistent+man+Uppsala","personlig+assistent+pojke"]:
-        url = f"https://se.indeed.com/rss?q={q}&l=Uppsala&radius=50&sort=date&fromage=30"
-        try:
-            r = requests.get(url, headers=HEADERS, timeout=15); r.raise_for_status()
-            root = ET.fromstring(r.content)
-        except Exception as e:
-            print(f"[WARN] Indeed RSS ({q}): {e}"); continue
-        for item in root.findall(".//item"):
-            g = tag = lambda n: (item.find(n).text or "").strip() if item.find(n) is not None else ""
-            guid = tag("guid") or tag("link")
-            if guid in seen: continue
-            seen.add(guid)
-            title,link,desc,pub = tag("title"),tag("link"),tag("description"),tag("pubDate")
-            if not title or not link: continue
-            pub_date = ""
-            try: pub_date = parsedate_to_datetime(pub).date().isoformat() if pub else ""
-            except: pass
-            lm = re.search(r"(?:Plats|location)[^>]*>:?\s*([^<]+)", desc, re.I)
-            cm = re.search(r"(?:retag|ompany)[^>]*>:?\s*([^<]+)", desc, re.I)
-            ort = lm.group(1).strip() if lm else "Uppsala"
-            company = cm.group(1).strip() if cm else "–"
-            raw = " ".join(re.sub(r"<[^>]+>"," ",desc).split())
-            slug = re.sub(r"[^a-z0-9]","",link.lower())[-24:]
-            jobs.append({"id":f"in_{slug}","title":title,"url":link,"deadline":"",
-                "pub_date":pub_date,"ort":ort,"company":company,
-                "source":"Indeed RSS","source_icon":"🔴","raw_text":title+" "+raw})
-    print(f"[INFO] Indeed RSS: {len(jobs)} listings"); return jobs
+    """
+    Indeed blocks GitHub Actions IP ranges with 403.
+    Kept as stub so fetch_all() still works — returns empty list.
+    Alternative: use JobTech API which covers Indeed-sourced jobs.
+    """
+    print("[INFO] Indeed RSS: skipped (blocked on GitHub Actions)")
+    return []
 
 
 # ── Source 3: JobTech Dev API ─────────────────────────────────────────────────
@@ -301,7 +279,16 @@ def fetch_jobtech():
             r.raise_for_status(); data = r.json()
         except Exception as e:
             print(f"[WARN] JobTech ({q}): {e}"); continue
-        for h in data.get("hits",{}).get("hits",[]):
+        # API may return {"hits":{"hits":[...]}} or a plain list
+        if isinstance(data, list):
+            hits = data
+        elif isinstance(data, dict):
+            hits = data.get("hits", data.get("jobs", []))
+            if isinstance(hits, dict):
+                hits = hits.get("hits", [])
+        else:
+            hits = []
+        for h in hits:
             jid = str(h.get("id",""))
             if not jid or jid in seen or jid.isdigit(): continue
             seen.add(jid)
