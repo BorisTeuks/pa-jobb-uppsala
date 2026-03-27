@@ -1,13 +1,22 @@
 """
-PA-jobb Uppsala – Daglig uppdatering  (v5)
+PA-jobb Uppsala – Daglig uppdatering  (v6)
 ──────────────────────────────────────────
-Changes from v4:
-  • Two sources: Assistanskoll (Platsbanken) + ledigajobb.se (direct ATS feeds)
-  • Smart deduplication: same title + employer → keep one, prefer Platsbanken ID
-  • Source tag shown in email + dashboard so you know where each job came from
+Changes from v5:
+  • 5 sources instead of 1: Platsbanken · Indeed RSS · JobTech Dev API · ledigajobb.se · vakanser.se
+  • Indeed RSS: catches jobs posted directly on Indeed before reaching Platsbanken
+  • JobTech Dev API: Sweden's official open job API, covers non-Platsbanken sources
+  • Deduplication by title only (first 8 words) — company name ignored (unreliable across sources)
+  • verify_still_open(): checks Platsbanken API on each run to catch filled/withdrawn jobs
+  • Home coordinates updated: Hjulaxelvägen 128, 74151 Uppsala (59.9650°N, 17.7150°E)
+  • Distance limit: 50 km from home address (Enköping, Norrtälje, Västerås excluded)
+  • Female exclusion: 30+ keywords covering title + full listing text
+  • Licence priority: 🚗 KRÄVS → ⭐⭐⭐ | 🚗 Merit → ⭐⭐ boost
+  • Weekend detection: helg/fredag kväll/extrajobb → ✅ Helg/kväll
+  • Dashboard: docs/index.html with 3 sections (New / Still open / Closed) + distance excluded
+  • Email: short digest with stats tiles + dashboard link + new jobs table
 """
 
-import re, json, smtplib, os, math
+import re, json, smtplib, os, math, urllib.parse, xml.etree.ElementTree as ET
 from datetime import date, datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -127,6 +136,50 @@ def is_expired(d):
     try: return date.fromisoformat(d[:10]) < date.today()
     except: return False
 
+def verify_still_open(job_id: str, url: str) -> bool:
+    """
+    Verifies a Platsbanken job is still actively listed.
+    Returns False if 404 (filled/removed), True otherwise.
+    Non-Platsbanken jobs rely on source disappearance instead.
+    """
+    if not job_id.startswith("pb_"):
+        return True
+    numeric_id = job_id.replace("pb_", "")
+    # Try Platsbanken API first
+    try:
+        api = f"https://platsbanken-api.arbetsformedlingen.se/jobs/v1/job/{numeric_id}"
+        r = requests.get(api, timeout=8, headers=HEADERS, allow_redirects=True)
+        if r.status_code == 404:
+            print(f"  [FILLED] #{numeric_id} returned 404 on Platsbanken API")
+            return False
+        if r.status_code == 200:
+            try:
+                data = r.json()
+                if data.get("removed") or data.get("status") in ("REMOVED","FILLED"):
+                    return False
+            except Exception:
+                pass
+            return True
+    except Exception:
+        pass
+    # Fallback: check the ad page directly
+    try:
+        r2 = requests.get(url, timeout=10, headers=HEADERS, allow_redirects=True)
+        if r2.status_code == 404:
+            return False
+        closed_signals = [
+            "annonsen är inte längre tillgänglig",
+            "jobbet är tillsatt",
+            "denna annons är avpublicerad",
+            "inte tillgänglig",
+            "sidan finns inte",
+        ]
+        if any(s in r2.text.lower() for s in closed_signals):
+            return False
+        return True
+    except Exception:
+        return True  # benefit of doubt if network fails
+
 def lic_label(t,r=""): s=lic_status(t,r); return "🚗 KRÄVS" if s=="required" else ("🚗 Merit" if s=="merit" else "–")
 def wk_label(t,r=""):  s=wk_status(t,r);  return "✅ Helg/kväll" if s=="strong" else ("🟡 Möjligt" if s=="soft" else "❓")
 
@@ -204,6 +257,69 @@ def fetch_assistanskoll():
     return jobs
 
 # ── Source 2: ledigajobb.se (direct ATS feeds incl. Särnmark, Vivida direct) ──
+# ── Source 2: Indeed RSS ──────────────────────────────────────────────────────
+def fetch_indeed_rss():
+    from email.utils import parsedate_to_datetime
+    seen, jobs = set(), []
+    for q in ["personlig+assistent+kille","personlig+assistent+man+Uppsala","personlig+assistent+pojke"]:
+        url = f"https://se.indeed.com/rss?q={q}&l=Uppsala&radius=50&sort=date&fromage=30"
+        try:
+            r = requests.get(url, headers=HEADERS, timeout=15); r.raise_for_status()
+            root = ET.fromstring(r.content)
+        except Exception as e:
+            print(f"[WARN] Indeed RSS ({q}): {e}"); continue
+        for item in root.findall(".//item"):
+            g = tag = lambda n: (item.find(n).text or "").strip() if item.find(n) is not None else ""
+            guid = tag("guid") or tag("link")
+            if guid in seen: continue
+            seen.add(guid)
+            title,link,desc,pub = tag("title"),tag("link"),tag("description"),tag("pubDate")
+            if not title or not link: continue
+            pub_date = ""
+            try: pub_date = parsedate_to_datetime(pub).date().isoformat() if pub else ""
+            except: pass
+            lm = re.search(r"(?:Plats|location)[^>]*>:?\s*([^<]+)", desc, re.I)
+            cm = re.search(r"(?:retag|ompany)[^>]*>:?\s*([^<]+)", desc, re.I)
+            ort = lm.group(1).strip() if lm else "Uppsala"
+            company = cm.group(1).strip() if cm else "–"
+            raw = " ".join(re.sub(r"<[^>]+>"," ",desc).split())
+            slug = re.sub(r"[^a-z0-9]","",link.lower())[-24:]
+            jobs.append({"id":f"in_{slug}","title":title,"url":link,"deadline":"",
+                "pub_date":pub_date,"ort":ort,"company":company,
+                "source":"Indeed RSS","source_icon":"🔴","raw_text":title+" "+raw})
+    print(f"[INFO] Indeed RSS: {len(jobs)} listings"); return jobs
+
+
+# ── Source 3: JobTech Dev API ─────────────────────────────────────────────────
+def fetch_jobtech():
+    seen, jobs = set(), []
+    for q in ["personlig assistent kille","personlig assistent man Uppsala"]:
+        p = urllib.parse.urlencode({"q":q,"municipality-concept-id":"682U_eMz_TXR","limit":100})
+        try:
+            r = requests.get(f"https://jobsearch.api.jobtechdev.se/search?{p}",
+                headers={**HEADERS,"Accept":"application/json"}, timeout=15)
+            r.raise_for_status(); data = r.json()
+        except Exception as e:
+            print(f"[WARN] JobTech ({q}): {e}"); continue
+        for h in data.get("hits",{}).get("hits",[]):
+            jid = str(h.get("id",""))
+            if not jid or jid in seen or jid.isdigit(): continue
+            seen.add(jid)
+            title = h.get("headline","")
+            if not title: continue
+            employer = h.get("employer",{}).get("name","–")
+            addr = h.get("workplace_address",{})
+            ort = addr.get("municipality") or addr.get("city") or "Uppsala"
+            url_ = h.get("webpage_url") or f"https://arbetsformedlingen.se/platsbanken/annonser/{jid}"
+            raw = re.sub(r"<[^>]+>"," ",h.get("description",{}).get("text",""))[:1500]
+            jobs.append({"id":f"jt_{jid}","title":title,"url":url_,
+                "deadline":(h.get("application_deadline") or "")[:10],
+                "pub_date":(h.get("publication_date") or "")[:10],
+                "ort":ort,"company":employer,
+                "source":"JobTech API","source_icon":"🟤","raw_text":title+" "+raw})
+    print(f"[INFO] JobTech API: {len(jobs)} non-Platsbanken listings"); return jobs
+
+
 def fetch_ledigajobb():
     """
     ledigajobb.se aggregates Platsbanken + direct company ATS feeds.
@@ -335,16 +451,18 @@ def fetch_all():
     When the same job title+company appears with multiple IDs (e.g. multi-vacancy posts),
     only the first occurrence is kept.
     """
-    pb_jobs = fetch_assistanskoll()   # Source 1 — primary
-    lj_jobs = fetch_ledigajobb()      # Source 2 — direct ATS feeds
-    vk_jobs = fetch_vakanser()        # Source 3 — Särnmark reachmee etc.
+    pb_jobs = fetch_assistanskoll()  # Source 1 — Platsbanken
+    in_jobs = fetch_indeed_rss()     # Source 2 — Indeed RSS
+    jt_jobs = fetch_jobtech()        # Source 3 — JobTech API
+    lj_jobs = fetch_ledigajobb()     # Source 4 — ledigajobb.se
+    vk_jobs = fetch_vakanser()       # Source 5 — vakanser.se
 
-    seen_keys = {}   # dedup key → first job id that claimed it
+    seen_keys = {}
     all_jobs  = []
     dups      = 0
 
-    # Process all sources in priority order: Platsbanken first
-    for j in pb_jobs + lj_jobs + vk_jobs:
+    # Priority: Platsbanken → Indeed → JobTech → ledigajobb → vakanser
+    for j in pb_jobs + in_jobs + jt_jobs + lj_jobs + vk_jobs:
         key = dedup_key(j["title"])
         if key in seen_keys:
             dups += 1
@@ -354,7 +472,7 @@ def fetch_all():
         all_jobs.append(j)
 
     print(f"[INFO] Combined: {len(all_jobs)} unique jobs ({dups} duplicates removed)")
-    print(f"[INFO] Sources: Platsbanken={len(pb_jobs)} ledigajobb={len(lj_jobs)} vakanser={len(vk_jobs)}")
+    print(f"[INFO] 5 sources: PB={len(pb_jobs)} In={len(in_jobs)} JT={len(jt_jobs)} LJ={len(lj_jobs)} VK={len(vk_jobs)}")
     return all_jobs
 
 # ── Filter ────────────────────────────────────────────────────────────────────
@@ -443,7 +561,7 @@ def update_excel(new_jobs, removed_ids):
         ws.insert_rows(footer); write_row(ws,footer,j,is_new=True); footer+=1
     safe_unmerge(ws,1); ws.merge_cells(start_row=1,start_column=1,end_row=1,end_column=13)
     c=ws.cell(row=1,column=1,
-        value=f"📋 PA-jobb Uppsala · UPPDATERAD {TODAY} · 3 källor · Radie <{MAX_KM} km · {len(new_jobs)} nya · {len(removed_ids)} borttagna")
+        value=f"📋 PA-jobb Uppsala · UPPDATERAD {TODAY} · 5 källor · Radie <{MAX_KM} km · {len(new_jobs)} nya · {len(removed_ids)} borttagna")
     c.font=Font(name="Arial",size=11,bold=True,color="FFFFFF")
     c.fill=PatternFill("solid",start_color="1B4332")
     c.alignment=Alignment(horizontal="left",vertical="center")
@@ -565,13 +683,13 @@ def build_dashboard(new_jobs, open_jobs, closed_jobs, dist_excl, source_stats):
   </div>
   {"" if not dist_excl else f'<div class="dist-section"><div class="dist-title">📍 Exkluderade – för långt bort (&gt;{MAX_KM} km) ({len(dist_excl)})</div>{dist_rows}</div>'}
   <div class="legend">
-    <strong>Källor:</strong> 🏛️ Platsbanken/Assistanskoll &nbsp;|&nbsp; 🔵 ledigajobb.se &nbsp;|&nbsp; 🟣 vakanser.se<br>
+    <strong>Källor:</strong> 🏛️ Platsbanken &nbsp;|&nbsp; 🔴 Indeed RSS &nbsp;|&nbsp; 🟤 JobTech API &nbsp;|&nbsp; 🔵 ledigajobb.se &nbsp;|&nbsp; 🟣 vakanser.se<br>
     <strong>Rating:</strong> ⭐⭐⭐ Perfekt &nbsp;|&nbsp; ⭐⭐ Bra &nbsp;|&nbsp; ⭐ Möjlig<br>
     <strong>Körkort:</strong> 🚗 KRÄVS = obligatoriskt &nbsp;|&nbsp; 🚗 Merit = meriterande<br>
     <strong>Helg:</strong> ✅ Helg/kväll = nämns explicit &nbsp;|&nbsp; 🟡 Möjligt = kväll/deltid nämns
   </div>
 </main>
-<footer>PA-agent v5 · 3 källor · GitHub Actions · Boris Teuks · {TODAY}</footer>
+<footer>PA-agent v5 · 5 källor · GitHub Actions · Boris Teuks · {TODAY}</footer>
 </body></html>"""
 
     DASHBOARD.write_text(html, encoding="utf-8")
@@ -608,7 +726,7 @@ def send_email(new_jobs, open_jobs, closed_jobs, dist_excl, source_stats):
     html=f"""<html><body style="font-family:Arial,sans-serif;max-width:720px;margin:auto">
     <div style="background:#1B4332;color:white;padding:18px 20px;border-radius:8px 8px 0 0">
       <h2 style="margin:0;font-size:18px">📋 PA-jobb Uppsala – {TODAY}</h2>
-      <p style="margin:4px 0 0;opacity:.75;font-size:12px">Daglig uppdatering · 3 källor · Manliga kunder · Max {MAX_KM} km från Hjulaxelvägen 128</p>
+      <p style="margin:4px 0 0;opacity:.75;font-size:12px">Daglig uppdatering · 5 källor · Manliga kunder · Max {MAX_KM} km från Hjulaxelvägen 128</p>
       <p style="margin:4px 0 0;opacity:.6;font-size:11px">📡 {src_summary}</p>
     </div>
     <div style="padding:16px 20px;background:#f9f9f9;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 8px 8px">
@@ -671,6 +789,10 @@ def main():
     current_ids = {j["id"]:j for j in filtered}
     new_jobs=[]; open_jobs=[]; closed_jobs=[]
 
+    # Count previously-seen jobs that need live verification
+    n_to_verify = sum(1 for j in filtered if j["id"] in seen)
+    print(f"[INFO] Verifying {n_to_verify} previously-seen jobs against live Platsbanken...")
+
     for j in filtered:
         enrich(j, seen)
         if j["id"] not in seen:
@@ -678,11 +800,20 @@ def main():
             new_jobs.append(j)
             print(f"[NEW  {j['stars']}] {j['title'][:50]} | {j['ort']} | {j['korkort']} | {j['tider']} | {j.get('source_icon','')} {j.get('source','')}")
         else:
-            open_jobs.append(j)
+            # Verify still accepting applications on live site
+            if verify_still_open(j["id"], j["url"]):
+                open_jobs.append(j)
+            else:
+                closed_jobs.append({
+                    "id": j["id"], "title": j["title"],
+                    "url": j["url"], "closed_reason": "filled/withdrawn"
+                })
+                print(f"[FILLED] {j['title'][:55]}")
 
     for aid, meta in seen.items():
         if aid not in current_ids:
-            closed_jobs.append({"id":aid,"title":meta.get("title","?"),"url":"#"})
+            if not any(c["id"] == aid for c in closed_jobs):
+                closed_jobs.append({"id":aid,"title":meta.get("title","?"),"url":"#"})
 
     for lst in [new_jobs, open_jobs]:
         lst.sort(key=lambda j:j.get("stars","⭐"),reverse=True)
