@@ -1,6 +1,10 @@
 """
-PA-jobb Uppsala – Daglig uppdatering  (v6)
+PA-jobb Uppsala – Daglig uppdatering  (v7)
 ──────────────────────────────────────────
+Changes from v6:
+  • 8 sources: added ledigajobbiuppsala.se, jobbsafari.se, Humana direct
+  • Catches Humana jobs posted directly without going through Platsbanken
+
 Changes from v5:
   • 5 sources instead of 1: Platsbanken · Indeed RSS · JobTech Dev API · ledigajobb.se · vakanser.se
   • Indeed RSS: stubbed out (GitHub Actions IPs blocked by Indeed 403); JobTech API covers same gap
@@ -307,6 +311,193 @@ def fetch_jobtech():
     print(f"[INFO] JobTech API: {len(jobs)} non-Platsbanken listings"); return jobs
 
 
+# ── Source 4: ledigajobbiuppsala.se ──────────────────────────────────────────
+def fetch_ledigajobb_uppsala():
+    """
+    Uppsala-specific job aggregator. Includes Humana direct postings,
+    company career pages, and other sources not on Platsbanken.
+    """
+    urls = [
+        "https://www.ledigajobbiuppsala.se/pr/personlig-assistent-jobb",
+        "https://www.ledigajobbiuppsala.se/foretag/humana-ab-uppsala",
+    ]
+    seen, jobs = set(), []
+
+    for url in urls:
+        try:
+            r = requests.get(url, headers=HEADERS, timeout=15)
+            r.raise_for_status()
+        except Exception as e:
+            print(f"[WARN] ledigajobbiuppsala ({url}): {e}"); continue
+
+        soup = BeautifulSoup(r.text, "html.parser")
+
+        # Find job links — ledigajobbiuppsala uses /jobb/ URL pattern
+        for a in soup.find_all("a", href=True):
+            href = a.get("href", "")
+            if not href:
+                continue
+            if not href.startswith("http"):
+                href = "https://www.ledigajobbiuppsala.se" + href
+            # Only job listing pages
+            if "/jobb/" not in href and "/foretag/" not in href:
+                continue
+
+            title = a.get_text(strip=True)
+            if not title or len(title) < 8:
+                continue
+
+            # Get surrounding context for metadata
+            parent = a.find_parent(["li", "div", "article", "section"])
+            raw = parent.get_text(" ", strip=True) if parent else title
+
+            # Skip if already seen this URL
+            if href in seen:
+                continue
+            seen.add(href)
+
+            # Extract company from parent element
+            comp_el = (parent.find(class_=re.compile(r"company|employer|foretag", re.I))
+                       if parent else None)
+            company = comp_el.get_text(strip=True) if comp_el else "–"
+
+            # Pub date — look for date patterns
+            date_m = re.search(r"(\d{4}-\d{2}-\d{2})", raw)
+            pub_date = date_m.group(1) if date_m else ""
+
+            slug = re.sub(r"[^a-z0-9]", "", href.lower())[-24:]
+            jobs.append({
+                "id":          f"lu_{slug}",
+                "title":       title,
+                "url":         href,
+                "deadline":    "",
+                "pub_date":    pub_date,
+                "ort":         "Uppsala",
+                "company":     company,
+                "source":      "ledigajobbiuppsala.se",
+                "source_icon": "🟠",
+                "raw_text":    title + " " + raw,
+            })
+
+    print(f"[INFO] ledigajobbiuppsala.se: {len(jobs)} listings")
+    return jobs
+
+
+# ── Source 5: jobbsafari.se ───────────────────────────────────────────────────
+def fetch_jobbsafari():
+    """
+    jobbsafari.se aggregates from company career pages directly.
+    Catches Humana, Frösunda, and other PA companies that post
+    to their own sites before Platsbanken.
+    """
+    url = ("https://jobbsafari.se/lediga-jobb?q=personlig+assistent"
+           "&location=Uppsala&distance=50")
+    try:
+        r = requests.get(url, headers=HEADERS, timeout=15)
+        r.raise_for_status()
+    except Exception as e:
+        print(f"[WARN] jobbsafari.se: {e}"); return []
+
+    soup = BeautifulSoup(r.text, "html.parser")
+    seen, jobs = set(), []
+
+    for item in soup.select("article, .job-item, .job-listing, li.search-result"):
+        a = item.find("a", href=True)
+        if not a:
+            continue
+        href = a.get("href", "")
+        if not href.startswith("http"):
+            href = "https://jobbsafari.se" + href
+        if href in seen:
+            continue
+        seen.add(href)
+
+        title = a.get_text(strip=True)
+        if not title or len(title) < 8:
+            continue
+
+        raw = item.get_text(" ", strip=True)
+
+        comp_el = item.find(class_=re.compile(r"company|employer|arbetsgivare", re.I))
+        company = comp_el.get_text(strip=True) if comp_el else "–"
+
+        loc_el = item.find(class_=re.compile(r"location|city|ort|plats", re.I))
+        ort = loc_el.get_text(strip=True) if loc_el else "Uppsala"
+
+        date_m = re.search(r"(\d{4}-\d{2}-\d{2})", raw)
+        pub_date = date_m.group(1) if date_m else ""
+
+        slug = re.sub(r"[^a-z0-9]", "", href.lower())[-24:]
+        jobs.append({
+            "id":          f"js_{slug}",
+            "title":       title,
+            "url":         href,
+            "deadline":    "",
+            "pub_date":    pub_date,
+            "ort":         ort,
+            "company":     company,
+            "source":      "jobbsafari.se",
+            "source_icon": "🟢",
+            "raw_text":    title + " " + raw,
+        })
+
+    print(f"[INFO] jobbsafari.se: {len(jobs)} listings")
+    return jobs
+
+
+# ── Source 6: Humana direct careers page ─────────────────────────────────────
+def fetch_humana_direct():
+    """
+    Humana's own careers page for Uppsala — catches jobs posted
+    directly on humana.se before they reach any aggregator.
+    """
+    url = "https://www.humana.se/om-humana/jobba-hos-oss/lediga-tjanster/?city=Uppsala"
+    try:
+        r = requests.get(url, headers=HEADERS, timeout=15)
+        r.raise_for_status()
+    except Exception as e:
+        print(f"[WARN] Humana direct: {e}"); return []
+
+    soup = BeautifulSoup(r.text, "html.parser")
+    seen, jobs = set(), []
+
+    for item in soup.select("article, .job, .vacancy, .listing, li"):
+        a = item.find("a", href=True)
+        if not a:
+            continue
+        href = a.get("href", "")
+        if not href.startswith("http"):
+            href = "https://www.humana.se" + href
+        if href in seen or "jobba" not in href.lower() and "jobb" not in href.lower() and "tjanst" not in href.lower():
+            continue
+        seen.add(href)
+
+        title = a.get_text(strip=True)
+        if not title or len(title) < 8:
+            continue
+
+        raw = item.get_text(" ", strip=True)
+        date_m = re.search(r"(\d{4}-\d{2}-\d{2})", raw)
+        pub_date = date_m.group(1) if date_m else ""
+
+        slug = re.sub(r"[^a-z0-9]", "", href.lower())[-24:]
+        jobs.append({
+            "id":          f"hu_{slug}",
+            "title":       title,
+            "url":         href,
+            "deadline":    "",
+            "pub_date":    pub_date,
+            "ort":         "Uppsala",
+            "company":     "Humana",
+            "source":      "Humana direct",
+            "source_icon": "🔵",
+            "raw_text":    title + " " + raw,
+        })
+
+    print(f"[INFO] Humana direct: {len(jobs)} listings")
+    return jobs
+
+
 def fetch_ledigajobb():
     """
     ledigajobb.se aggregates Platsbanken + direct company ATS feeds.
@@ -438,18 +629,21 @@ def fetch_all():
     When the same job title+company appears with multiple IDs (e.g. multi-vacancy posts),
     only the first occurrence is kept.
     """
-    pb_jobs = fetch_assistanskoll()  # Source 1 — Platsbanken
-    in_jobs = fetch_indeed_rss()     # Source 2 — Indeed RSS
-    jt_jobs = fetch_jobtech()        # Source 3 — JobTech API
-    lj_jobs = fetch_ledigajobb()     # Source 4 — ledigajobb.se
-    vk_jobs = fetch_vakanser()       # Source 5 — vakanser.se
+    pb_jobs = fetch_assistanskoll()      # Source 1 — Platsbanken
+    in_jobs = fetch_indeed_rss()         # Source 2 — Indeed RSS (stub)
+    jt_jobs = fetch_jobtech()            # Source 3 — JobTech API
+    lj_jobs = fetch_ledigajobb()         # Source 4 — ledigajobb.se
+    vk_jobs = fetch_vakanser()           # Source 5 — vakanser.se
+    lu_jobs = fetch_ledigajobb_uppsala() # Source 6 — ledigajobbiuppsala.se
+    js_jobs = fetch_jobbsafari()         # Source 7 — jobbsafari.se
+    hu_jobs = fetch_humana_direct()      # Source 8 — Humana direct
 
     seen_keys = {}
     all_jobs  = []
     dups      = 0
 
-    # Priority: Platsbanken → Indeed → JobTech → ledigajobb → vakanser
-    for j in pb_jobs + in_jobs + jt_jobs + lj_jobs + vk_jobs:
+    # Priority: Platsbanken first, then all others
+    for j in pb_jobs + in_jobs + jt_jobs + lj_jobs + vk_jobs + lu_jobs + js_jobs + hu_jobs:
         key = dedup_key(j["title"])
         if key in seen_keys:
             dups += 1
@@ -459,7 +653,7 @@ def fetch_all():
         all_jobs.append(j)
 
     print(f"[INFO] Combined: {len(all_jobs)} unique jobs ({dups} duplicates removed)")
-    print(f"[INFO] 5 sources: PB={len(pb_jobs)} In={len(in_jobs)} JT={len(jt_jobs)} LJ={len(lj_jobs)} VK={len(vk_jobs)}")
+    print(f"[INFO] 8 sources: PB={len(pb_jobs)} JT={len(jt_jobs)} LJ={len(lj_jobs)} VK={len(vk_jobs)} LU={len(lu_jobs)} JS={len(js_jobs)} HU={len(hu_jobs)}")
     return all_jobs
 
 # ── Filter ────────────────────────────────────────────────────────────────────
@@ -548,7 +742,7 @@ def update_excel(new_jobs, removed_ids):
         ws.insert_rows(footer); write_row(ws,footer,j,is_new=True); footer+=1
     safe_unmerge(ws,1); ws.merge_cells(start_row=1,start_column=1,end_row=1,end_column=13)
     c=ws.cell(row=1,column=1,
-        value=f"📋 PA-jobb Uppsala · UPPDATERAD {TODAY} · 5 källor · Radie <{MAX_KM} km · {len(new_jobs)} nya · {len(removed_ids)} borttagna")
+        value=f"📋 PA-jobb Uppsala · UPPDATERAD {TODAY} · 8 källor · Radie <{MAX_KM} km · {len(new_jobs)} nya · {len(removed_ids)} borttagna")
     c.font=Font(name="Arial",size=11,bold=True,color="FFFFFF")
     c.fill=PatternFill("solid",start_color="1B4332")
     c.alignment=Alignment(horizontal="left",vertical="center")
@@ -670,13 +864,13 @@ def build_dashboard(new_jobs, open_jobs, closed_jobs, dist_excl, source_stats):
   </div>
   {"" if not dist_excl else f'<div class="dist-section"><div class="dist-title">📍 Exkluderade – för långt bort (&gt;{MAX_KM} km) ({len(dist_excl)})</div>{dist_rows}</div>'}
   <div class="legend">
-    <strong>Källor:</strong> 🏛️ Platsbanken &nbsp;|&nbsp; 🔴 Indeed RSS &nbsp;|&nbsp; 🟤 JobTech API &nbsp;|&nbsp; 🔵 ledigajobb.se &nbsp;|&nbsp; 🟣 vakanser.se<br>
+    <strong>Källor:</strong> 🏛️ Platsbanken &nbsp;|&nbsp; 🟤 JobTech API &nbsp;|&nbsp; 🔵 ledigajobb.se &nbsp;|&nbsp; 🟣 vakanser.se &nbsp;|&nbsp; 🟠 ledigajobbiuppsala.se &nbsp;|&nbsp; 🟢 jobbsafari.se &nbsp;|&nbsp; 🔵 Humana direct<br>
     <strong>Rating:</strong> ⭐⭐⭐ Perfekt &nbsp;|&nbsp; ⭐⭐ Bra &nbsp;|&nbsp; ⭐ Möjlig<br>
     <strong>Körkort:</strong> 🚗 KRÄVS = obligatoriskt &nbsp;|&nbsp; 🚗 Merit = meriterande<br>
     <strong>Helg:</strong> ✅ Helg/kväll = nämns explicit &nbsp;|&nbsp; 🟡 Möjligt = kväll/deltid nämns
   </div>
 </main>
-<footer>PA-agent v5 · 5 källor · GitHub Actions · Boris Teuks · {TODAY}</footer>
+<footer>PA-agent v5 · 8 källor · GitHub Actions · Boris Teuks · {TODAY}</footer>
 </body></html>"""
 
     DASHBOARD.write_text(html, encoding="utf-8")
@@ -713,7 +907,7 @@ def send_email(new_jobs, open_jobs, closed_jobs, dist_excl, source_stats):
     html=f"""<html><body style="font-family:Arial,sans-serif;max-width:720px;margin:auto">
     <div style="background:#1B4332;color:white;padding:18px 20px;border-radius:8px 8px 0 0">
       <h2 style="margin:0;font-size:18px">📋 PA-jobb Uppsala – {TODAY}</h2>
-      <p style="margin:4px 0 0;opacity:.75;font-size:12px">Daglig uppdatering · 5 källor · Manliga kunder · Max {MAX_KM} km från Hjulaxelvägen 128</p>
+      <p style="margin:4px 0 0;opacity:.75;font-size:12px">Daglig uppdatering · 8 källor · Manliga kunder · Max {MAX_KM} km från Hjulaxelvägen 128</p>
       <p style="margin:4px 0 0;opacity:.6;font-size:11px">📡 {src_summary}</p>
     </div>
     <div style="padding:16px 20px;background:#f9f9f9;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 8px 8px">
