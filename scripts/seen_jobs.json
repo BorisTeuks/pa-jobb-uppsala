@@ -7,10 +7,6 @@
     "title": "Personlig assistent till man i Uppsala",
     "first_seen": "2026-03-20"
   },
-  "pb_30751040": {
-    "title": "Personlig assistent sökes till aktiv ung man i Knivsta",
-    "first_seen": "2026-03-20"
-  },
   "pb_30687806": {
     "title": "Personliga assistenter till en kille i Uppsala.",
     "first_seen": "2026-03-20"
@@ -18,10 +14,6 @@
   "pb_30724355": {
     "title": "Personlig assistent för timvikariat sökes till man i Heby",
     "first_seen": "2026-03-20"
-  },
-  "pb_30779004": {
-    "title": "Engagerad assistent sökes till man i Enköping",
-    "first_seen": "2026-03-21"
   },
   "pb_30791374": {
     "title": "Timvikarie sökes till aktiv man i centrala Uppsala",
@@ -90,5 +82,13 @@
   "lu_0e3297d22dfb6batypeshare": {
     "title": "Vi söker PA för kund i Stockholm",
     "first_seen": "2026-04-23"
+  },
+  "lu_ruitmentapply1955source2": {
+    "title": "Engagerad assistent sökes till man i Enköping",
+    "first_seen": "2026-05-01"
+  },
+  "lu_ruitmentapply1860source2": {
+    "title": "Extra jobb nu och i sommar? Vi söker Personliga assistenter!",
+    "first_seen": "2026-05-01"
   }
 }
