@@ -15,10 +15,6 @@
     "title": "Personlig assistent till autistisk man i Uppsala",
     "first_seen": "2026-05-19"
   },
-  "lj_gmanicentralauppsala": {
-    "title": "Personlig assistent till en ung man i centrala Uppsala",
-    "first_seen": "2026-05-21"
-  },
   "pb_31062823": {
     "title": "Assistenter sökes till en trevlig man i Uppsala",
     "first_seen": "2026-05-26"
@@ -67,10 +63,6 @@
     "title": "Personlig assistent till man i Uppsala",
     "first_seen": "2026-06-03"
   },
-  "lj_erpersonligassistent": {
-    "title": "Social man i 70-års åldern söker personlig assistent",
-    "first_seen": "2026-06-03"
-  },
   "lu_ruitmentapply2013source2": {
     "title": "Söker dig personlig assistent med intresse av matlagning och omvårdnad",
     "first_seen": "2026-06-03"
@@ -98,5 +90,17 @@
   "lu_ecruitmentapply23source2": {
     "title": "Vill du assistera mig på min gård utanför Uppsala?",
     "first_seen": "2026-06-03"
+  },
+  "pb_31131605": {
+    "title": "Social man i 70-års åldern söker personlig assistent",
+    "first_seen": "2026-06-04"
+  },
+  "lj_ill3rigpojkeiuppsala": {
+    "title": "Assistent sökes till 3-årig pojke i Uppsala",
+    "first_seen": "2026-06-04"
+  },
+  "lj_tillaktivmaniuppsala": {
+    "title": "Personlig assistent till aktiv man i Uppsala",
+    "first_seen": "2026-06-04"
   }
 }
