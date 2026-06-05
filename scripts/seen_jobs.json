@@ -43,10 +43,6 @@
     "title": "40% tjänst erbjudes till glad kille i Almunge",
     "first_seen": "2026-06-03"
   },
-  "lu_ntertillenkilleiuppsala1": {
-    "title": "Personliga assistenter till en kille i Uppsala.",
-    "first_seen": "2026-06-03"
-  },
   "lu_ruitmentapply1886source2": {
     "title": "50% tjänst erbjudes till glad kille i Almunge",
     "first_seen": "2026-06-03"
@@ -95,12 +91,24 @@
     "title": "Social man i 70-års åldern söker personlig assistent",
     "first_seen": "2026-06-04"
   },
-  "lj_ill3rigpojkeiuppsala": {
-    "title": "Assistent sökes till 3-årig pojke i Uppsala",
-    "first_seen": "2026-06-04"
+  "pb_31141991": {
+    "title": "Personliga assistenter till en kille i Uppsala.",
+    "first_seen": "2026-06-05"
   },
-  "lj_tillaktivmaniuppsala": {
+  "pb_31139830": {
+    "title": "Personlig assistent sökes till man i Uppsala - två tjänster",
+    "first_seen": "2026-06-05"
+  },
+  "pb_31138562": {
+    "title": "Assistent sökes till 3-årig pojke i Uppsala",
+    "first_seen": "2026-06-05"
+  },
+  "pb_31138342": {
     "title": "Personlig assistent till aktiv man i Uppsala",
-    "first_seen": "2026-06-04"
+    "first_seen": "2026-06-05"
+  },
+  "pb_31138478": {
+    "title": "Trygg och lyhörd assistent sökes till man i Tierp (timanställning)",
+    "first_seen": "2026-06-05"
   }
 }
