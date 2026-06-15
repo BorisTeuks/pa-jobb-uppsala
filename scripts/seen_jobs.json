@@ -75,10 +75,6 @@
     "title": "Vill du assistera mig på min gård utanför Uppsala?",
     "first_seen": "2026-06-03"
   },
-  "pb_31131605": {
-    "title": "Social man i 70-års åldern söker personlig assistent",
-    "first_seen": "2026-06-04"
-  },
   "pb_31141991": {
     "title": "Personliga assistenter till en kille i Uppsala.",
     "first_seen": "2026-06-05"
@@ -102,5 +98,9 @@
   "pb_31150980": {
     "title": "Sommarvikarie sökes till 32-årig mjukvaruutvecklare i Uppsala",
     "first_seen": "2026-06-09"
+  },
+  "lj_tskestillmanienkping": {
+    "title": "NyTimvikarie och engagerad assistent sökes till man i Enköping",
+    "first_seen": "2026-06-15"
   }
 }
