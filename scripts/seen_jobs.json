@@ -19,10 +19,6 @@
     "title": "Personlig assistent, timvikariat, sökes till man i Heby",
     "first_seen": "2026-05-30"
   },
-  "pb_31111080": {
-    "title": "Personlig assistent sökes till en ung man i Uppsala",
-    "first_seen": "2026-06-01"
-  },
   "pb_31129740": {
     "title": "Personlig assistent till man i Uppsala",
     "first_seen": "2026-06-03"
@@ -50,5 +46,9 @@
   "pb_31150980": {
     "title": "Sommarvikarie sökes till 32-årig mjukvaruutvecklare i Uppsala",
     "first_seen": "2026-06-09"
+  },
+  "lj_tillenungmaniuppsala": {
+    "title": "Personlig assistent sökes till en ung man i Uppsala",
+    "first_seen": "2026-06-17"
   }
 }
