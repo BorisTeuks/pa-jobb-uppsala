@@ -27,10 +27,6 @@
     "title": "Personliga assistenter till en kille i Uppsala.",
     "first_seen": "2026-06-05"
   },
-  "pb_31139830": {
-    "title": "Personlig assistent sökes till man i Uppsala - två tjänster",
-    "first_seen": "2026-06-05"
-  },
   "pb_31138562": {
     "title": "Assistent sökes till 3-årig pojke i Uppsala",
     "first_seen": "2026-06-05"
@@ -46,10 +42,6 @@
   "pb_31150980": {
     "title": "Sommarvikarie sökes till 32-årig mjukvaruutvecklare i Uppsala",
     "first_seen": "2026-06-09"
-  },
-  "lj_tillenungmaniuppsala": {
-    "title": "Personlig assistent sökes till en ung man i Uppsala",
-    "first_seen": "2026-06-17"
   },
   "pb_31189334": {
     "title": "Aktiv engagerad assistent sökes till kille i Tobo/Örbyhus, körkort krav",
@@ -102,5 +94,21 @@
   "pb_31193785": {
     "title": "Initiativrik assistent sökes till 8-årig kille",
     "first_seen": "2026-06-19"
+  },
+  "pb_31204799": {
+    "title": "Personlig assistent sökes till man i Uppsala - fast schemarad",
+    "first_seen": "2026-06-23"
+  },
+  "pb_31203770": {
+    "title": "Man i Uppsala söker assistans 15:00-21:00 mån-fre.",
+    "first_seen": "2026-06-23"
+  },
+  "lj_uppsalafastschemarad": {
+    "title": "NyPersonlig assistent sökes till man i Uppsala - fast schemarad",
+    "first_seen": "2026-06-23"
+  },
+  "lj_sistans15002100mnfre": {
+    "title": "NyMan i Uppsala söker assistans 15:00-21:00 mån-fre.",
+    "first_seen": "2026-06-23"
   }
 }
