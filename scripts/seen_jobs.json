@@ -23,10 +23,6 @@
     "title": "Personlig assistent till aktiv man i Uppsala",
     "first_seen": "2026-06-05"
   },
-  "pb_31150980": {
-    "title": "Sommarvikarie sökes till 32-årig mjukvaruutvecklare i Uppsala",
-    "first_seen": "2026-06-09"
-  },
   "pb_31189334": {
     "title": "Aktiv engagerad assistent sökes till kille i Tobo/Örbyhus, körkort krav",
     "first_seen": "2026-06-18"
@@ -90,5 +86,9 @@
   "lu_ecruitmentapply23source2": {
     "title": "Vill du assistera mig på min gård utanför Uppsala?",
     "first_seen": "2026-06-28"
+  },
+  "pb_30791374": {
+    "title": "Timvikarie sökes till aktiv man i centrala Uppsala",
+    "first_seen": "2026-06-30"
   }
 }
