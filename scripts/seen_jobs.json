@@ -3,10 +3,6 @@
     "title": "Assistenter sökes till en trevlig man i Uppsala",
     "first_seen": "2026-05-26"
   },
-  "pb_31077869": {
-    "title": "Personlig assistent åt kille i Östervåla",
-    "first_seen": "2026-05-26"
-  },
   "pb_31105052": {
     "title": "Personlig assistent, timvikariat, sökes till man i Heby",
     "first_seen": "2026-05-30"
@@ -87,8 +83,12 @@
     "title": "Vill du assistera mig på min gård utanför Uppsala?",
     "first_seen": "2026-06-28"
   },
-  "pb_30791374": {
+  "lu_ruitmentapply2075source2": {
+    "title": "Söker dig som gillar ett aktivt jobb, som personlig assistent i Uppsala",
+    "first_seen": "2026-07-01"
+  },
+  "lu_ruitmentapply1961source2": {
     "title": "Timvikarie sökes till aktiv man i centrala Uppsala",
-    "first_seen": "2026-06-30"
+    "first_seen": "2026-07-01"
   }
 }
