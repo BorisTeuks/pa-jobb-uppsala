@@ -8,7 +8,7 @@
     "first_seen": "2026-06-05"
   },
   "pb_31257193": {
-    "title": "Personliga assistenter till en kille i Uppsala.",
+    "title": "Personliga assistenter till kille i Uppsala",
     "first_seen": "2026-07-09"
   },
   "pb_31288239": {
@@ -50,10 +50,6 @@
   "pb_31343535": {
     "title": "Personliga assistenter sökes till kille utanför Uppsala",
     "first_seen": "2026-08-13"
-  },
-  "pb_31348037": {
-    "title": "Timvikarie sökes till matlagningsintresserad man i Tierp",
-    "first_seen": "2026-08-14"
   },
   "pb_31356836": {
     "title": "Personlig assistent  till 3-årig pojke i Uppsala",
@@ -118,5 +114,13 @@
   "lu_ecruitmentapply23source2": {
     "title": "Vill du assistera mig på min gård utanför Uppsala?",
     "first_seen": "2026-08-19"
+  },
+  "lu_ab1d490bb53c2f91eb3efb25": {
+    "title": "Personliga assistenter till en kille i Uppsala.",
+    "first_seen": "2026-08-20"
+  },
+  "pb_31370224": {
+    "title": "Timvikarie sökes till matlagningsintresserad man i Tierp",
+    "first_seen": "2026-08-20"
   }
 }
