@@ -1,8 +1,4 @@
 {
-  "pb_31129740": {
-    "title": "Personlig assistent till man i Uppsala",
-    "first_seen": "2026-06-03"
-  },
   "pb_31138342": {
     "title": "Personlig assistent till aktiv man i Uppsala",
     "first_seen": "2026-06-05"
@@ -18,14 +14,6 @@
   "pb_31328443": {
     "title": "Personlig assistent sökes till man i Uppsala - fast schemarad",
     "first_seen": "2026-08-08"
-  },
-  "pb_31345608": {
-    "title": "Söker dig som vill arbeta som personlig assistent åt en trevlig 62-årig Man",
-    "first_seen": "2026-08-13"
-  },
-  "pb_31343535": {
-    "title": "Personliga assistenter sökes till kille utanför Uppsala",
-    "first_seen": "2026-08-13"
   },
   "pb_31370224": {
     "title": "Timvikarie sökes till matlagningsintresserad man i Tierp",
@@ -127,8 +115,12 @@
     "title": "Vill du assistera mig på min gård utanför Uppsala?",
     "first_seen": "2026-09-10"
   },
-  "lj_sistans15002100mnfre": {
-    "title": "NyMan i Uppsala söker assistans 15:00-21:00 mån-fre.",
-    "first_seen": "2026-09-11"
+  "pb_31466858": {
+    "title": "Personlig assistent till man i Uppsala",
+    "first_seen": "2026-09-12"
+  },
+  "pb_31465008": {
+    "title": "Man i Uppsala söker assistans 15:00-21:00 mån-fre.",
+    "first_seen": "2026-09-12"
   }
 }
