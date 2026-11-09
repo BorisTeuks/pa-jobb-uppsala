@@ -107,10 +107,6 @@
     "title": "Djur och bilintresserad kille söker en glad assistent",
     "first_seen": "2026-10-21"
   },
-  "pb_31640318": {
-    "title": "Personlig assistent sökes till man vid Vaksalatorg",
-    "first_seen": "2026-10-24"
-  },
   "pb_31635144": {
     "title": "Söker timvikarie till man i Uppsala, som lever ett aktivt liv",
     "first_seen": "2026-10-24"
@@ -122,5 +118,9 @@
   "pb_31698648": {
     "title": "Personlig assistent  till 3-årig pojke i Uppsala",
     "first_seen": "2026-11-07"
+  },
+  "lj_ttillenmani30rsldern": {
+    "title": "NyPersonlig assistent till en man i 30-årsåldern",
+    "first_seen": "2026-11-09"
   }
 }
