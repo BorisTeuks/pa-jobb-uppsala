@@ -55,10 +55,6 @@
     "title": "Personlig assistent till ung man i Uppsala",
     "first_seen": "2026-10-13"
   },
-  "pb_31585297": {
-    "title": "Personlig assistent till kille i Habo- dygnspass",
-    "first_seen": "2026-10-13"
-  },
   "lu_ruitmentapply2200source2": {
     "title": "Timvikarier sökes till social man i 70-års åldern i Uppsala",
     "first_seen": "2026-10-13"
@@ -122,5 +118,9 @@
   "pb_31702390": {
     "title": "Personlig assistent till en man i 30-årsåldern",
     "first_seen": "2026-11-10"
+  },
+  "lj_l30rigkilleinorrtlje": {
+    "title": "NyTimvikarier sökes till 30 årig kille i Norrtälje",
+    "first_seen": "2026-11-11"
   }
 }
