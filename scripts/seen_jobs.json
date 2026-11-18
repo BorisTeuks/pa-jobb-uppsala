@@ -11,10 +11,6 @@
     "title": "Personlig assistent till man i Uppsala",
     "first_seen": "2026-09-12"
   },
-  "pb_31477225": {
-    "title": "Timvikarier som personlig assistent sökes till en trevlig man i Uppsala",
-    "first_seen": "2026-09-15"
-  },
   "pb_31578374": {
     "title": "Personliga assistenter sökes till man i 40-års åldern",
     "first_seen": "2026-10-10"
@@ -126,5 +122,9 @@
   "pb_31737596": {
     "title": "Personlig Assistent till man i Vänge, Uppsala Körkort ett krav",
     "first_seen": "2026-11-17"
+  },
+  "lj_ll18rigpojkeiuppsala": {
+    "title": "NyPersonlig assistent sökes till 18 årig pojke i Uppsala.",
+    "first_seen": "2026-11-18"
   }
 }
